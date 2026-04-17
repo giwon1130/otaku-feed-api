@@ -1,0 +1,24 @@
+server:
+  port: ${PORT:${SERVER_PORT:8092}}
+
+spring:
+  application:
+    name: otaku-feed-api
+  flyway:
+    enabled: true
+    url: ${JDBC_DATABASE_URL:${DATABASE_URL:}}
+    user: ${PGUSER:}
+    password: ${PGPASSWORD:}
+    locations: classpath:db/migration
+
+otaku-feed:
+  jdbc:
+    url: ${JDBC_DATABASE_URL:${DATABASE_URL:}}
+    username: ${PGUSER:}
+    password: ${PGPASSWORD:}
+    driver-class-name: org.postgresql.Driver
+  jwt:
+    secret: ${JWT_SECRET:otaku-feed-dev-secret-change-in-prod-min-32chars}
+    expiration-hours: 720   # 30일
+  cors:
+    allowed-origin-patterns: ${OTAKU_CORS_ALLOWED_ORIGINS:*}
