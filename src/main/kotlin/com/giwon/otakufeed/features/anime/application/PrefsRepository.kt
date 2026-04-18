@@ -1,8 +1,8 @@
 package com.giwon.otakufeed.features.anime.application
 
+import org.springframework.jdbc.core.ConnectionCallback
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Repository
-import java.sql.Array
 import java.util.UUID
 
 @Repository
@@ -18,7 +18,7 @@ class PrefsRepository(private val jdbc: JdbcTemplate) {
     }
 
     fun upsert(userId: UUID, genres: List<String>): UserPrefs {
-        val arr = jdbc.execute { con -> con.createArrayOf("text", genres.toTypedArray()) }
+        val arr = jdbc.execute(ConnectionCallback { con -> con.createArrayOf("text", genres.toTypedArray()) })
         jdbc.update("""
             INSERT INTO otaku_user_prefs (user_id, favorite_genres)
             VALUES (?, ?)
