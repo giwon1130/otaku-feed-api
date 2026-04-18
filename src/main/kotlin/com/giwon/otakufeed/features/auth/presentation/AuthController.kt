@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
 data class SignupRequest(
-    @field:Email   val email: String,
+    @field:Email    val email: String,
     @field:NotBlank val password: String,
     @field:NotBlank val nickname: String,
 )
@@ -18,6 +18,9 @@ data class LoginRequest(
     @field:Email    val email: String,
     @field:NotBlank val password: String,
 )
+
+data class GoogleOAuthRequest(@field:NotBlank val idToken: String)
+data class KakaoOAuthRequest(@field:NotBlank val accessToken: String)
 
 data class AuthResponse(
     val token: String,
@@ -31,23 +34,26 @@ data class AuthResponse(
 class AuthController(private val authService: AuthService) {
 
     @PostMapping("/signup")
-    fun signup(@Valid @RequestBody req: SignupRequest): ResponseEntity<AuthResponse> {
-        val result = authService.signup(req.email, req.password, req.nickname)
-        return ResponseEntity.ok(result.toResponse())
-    }
+    fun signup(@Valid @RequestBody req: SignupRequest): ResponseEntity<AuthResponse> =
+        ResponseEntity.ok(authService.signup(req.email, req.password, req.nickname).toResponse())
 
     @PostMapping("/login")
-    fun login(@Valid @RequestBody req: LoginRequest): ResponseEntity<AuthResponse> {
-        val result = authService.login(req.email, req.password)
-        return ResponseEntity.ok(result.toResponse())
-    }
+    fun login(@Valid @RequestBody req: LoginRequest): ResponseEntity<AuthResponse> =
+        ResponseEntity.ok(authService.login(req.email, req.password).toResponse())
 
     @GetMapping("/me")
     fun me(@RequestHeader("Authorization") authorization: String): ResponseEntity<AuthResponse> {
         val token = authorization.removePrefix("Bearer ").trim()
-        val result = authService.me(token)
-        return ResponseEntity.ok(result.toResponse())
+        return ResponseEntity.ok(authService.me(token).toResponse())
     }
+
+    @PostMapping("/oauth/google")
+    fun googleOAuth(@Valid @RequestBody req: GoogleOAuthRequest): ResponseEntity<AuthResponse> =
+        ResponseEntity.ok(authService.googleOAuth(req.idToken).toResponse())
+
+    @PostMapping("/oauth/kakao")
+    fun kakaoOAuth(@Valid @RequestBody req: KakaoOAuthRequest): ResponseEntity<AuthResponse> =
+        ResponseEntity.ok(authService.kakaoOAuth(req.accessToken).toResponse())
 
     private fun AuthService.AuthResult.toResponse() =
         AuthResponse(token, userId, email, nickname)
