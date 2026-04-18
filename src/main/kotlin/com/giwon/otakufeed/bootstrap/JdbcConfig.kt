@@ -21,7 +21,8 @@ class JdbcConfig(private val props: JdbcProperties) {
     @Bean
     fun dataSource(): DataSource = DriverManagerDataSource().apply {
         setDriverClassName(props.driverClassName)
-        url      = props.url
+        val base = props.url
+        url = if (base.contains('?')) "$base&currentSchema=otaku" else "$base?currentSchema=otaku"
         username = props.username
         password = props.password
     }
