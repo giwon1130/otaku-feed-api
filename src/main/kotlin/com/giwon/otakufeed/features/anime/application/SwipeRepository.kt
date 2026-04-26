@@ -37,6 +37,25 @@ class SwipeRepository(private val jdbc: JdbcTemplate) {
         ).first()
     }
 
+    /**
+     * 여러 swipe를 한 트랜잭션·한 round-trip으로 upsert.
+     * - JdbcTemplate.batchUpdate() → 단일 prepared statement에 N개 입력 바인딩
+     * - DB 입장에선 N개 row INSERT/UPDATE지만 네트워크 RTT는 1회
+     * - 모바일 ↔ 서버 간 RPC 비용(Railway egress + container CPU 시간)을 절감
+     */
+    fun bulkUpsert(userId: UUID, items: List<Pair<Int, SwipeResult>>) {
+        if (items.isEmpty()) return
+        jdbc.batchUpdate(
+            """
+            INSERT INTO otaku_user_swipes (user_id, anime_id, result)
+            VALUES (?, ?, ?)
+            ON CONFLICT (user_id, anime_id)
+            DO UPDATE SET result = EXCLUDED.result, swiped_at = now()
+            """,
+            items.map { (animeId, result) -> arrayOf<Any>(userId, animeId, result.name) },
+        )
+    }
+
     fun delete(userId: UUID, animeId: Int): Int =
         jdbc.update("DELETE FROM otaku_user_swipes WHERE user_id = ? AND anime_id = ?", userId, animeId)
 }

@@ -19,8 +19,13 @@ data class SwipeRequest(
     @field:NotBlank val result: String,   // like | dislike | skip
 )
 
+data class BulkSwipeRequest(
+    @field:NotNull val swipes: List<SwipeRequest> = emptyList(),
+)
+
+// id 필드는 클라가 안 씀 → egress 절감 위해 제거 (UUID string ~40B × N rows).
+// 로깅/디버그가 필요하면 X-Request-Id 헤더 등 별도 채널 사용.
 data class SwipeResponse(
-    val id: String,
     val animeId: Int,
     val result: String,
     val swipedAt: String,
@@ -55,7 +60,7 @@ class AnimeController(
             swipeRepo.findByUserId(userId)
         }
         return ResponseEntity.ok(swipes.map {
-            SwipeResponse(it.id.toString(), it.animeId, it.result.name, it.swipedAt.toString())
+            SwipeResponse(it.animeId, it.result.name, it.swipedAt.toString())
         })
     }
 
@@ -69,7 +74,27 @@ class AnimeController(
             return ResponseEntity.badRequest().build()
         }
         val saved = swipeRepo.upsert(userId, req.animeId, result)
-        return ResponseEntity.ok(SwipeResponse(saved.id.toString(), saved.animeId, saved.result.name, saved.swipedAt.toString()))
+        return ResponseEntity.ok(SwipeResponse(saved.animeId, saved.result.name, saved.swipedAt.toString()))
+    }
+
+    /**
+     * 여러 swipe를 한 번에 저장 (모바일 측 debounce + 일괄 푸시 패턴 대응).
+     * - 클라가 빠르게 N번 swipe → 3초 idle 후 1회 호출
+     * - 서버는 batchUpdate로 단일 RTT
+     * - 응답은 200 + count만 (개별 row 안 돌려줌 → egress 절약)
+     */
+    @PostMapping("/swipes/bulk")
+    fun saveSwipesBulk(
+        @RequestHeader("Authorization") authorization: String,
+        @Valid @RequestBody req: BulkSwipeRequest,
+    ): ResponseEntity<Map<String, Int>> {
+        val userId = extractUserId(authorization)
+        val items = req.swipes.mapNotNull { s ->
+            val r = runCatching { SwipeResult.valueOf(s.result) }.getOrNull() ?: return@mapNotNull null
+            s.animeId to r
+        }
+        swipeRepo.bulkUpsert(userId, items)
+        return ResponseEntity.ok(mapOf("saved" to items.size))
     }
 
     @DeleteMapping("/swipes/{animeId}")

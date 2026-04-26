@@ -1,5 +1,10 @@
 server:
   port: ${PORT:${SERVER_PORT:8092}}
+  # gzip 응답 압축 — JSON 응답 50–80% 감소 → Railway egress 비용 절감
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+    min-response-size: 1024   # 1KB 미만은 압축 오버헤드가 더 큼
 
 spring:
   application:
