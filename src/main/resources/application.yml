@@ -9,6 +9,10 @@ server:
 spring:
   application:
     name: otaku-feed-api
+  # 부팅 빠르게 — 부트 시 모든 빈을 만들지 않고, 필요할 때 lazy 생성.
+  # Railway cold start 회복 시간 단축 (현재 ~0.9s → 더 짧게).
+  main:
+    lazy-initialization: true
   flyway:
     enabled: true
     url: jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:railway}
@@ -25,6 +29,14 @@ otaku-feed:
     username: ${PGUSER:}
     password: ${PGPASSWORD:}
     driver-class-name: org.postgresql.Driver
+    # Hikari pool 사이징 — Railway 작은 인스턴스(512MB RAM)에선
+    # 기본 10보다 작게 잡아 메모리 절약 + DB 커넥션 한도 여유 확보.
+    # 이 앱은 동시 요청이 거의 없는 모바일 1:1 패턴이라 5면 충분.
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      idle-timeout: 60000
+      connection-timeout: 5000
   jwt:
     secret: ${JWT_SECRET:otaku-feed-dev-secret-change-in-prod-min-32chars}
     expiration-hours: 720   # 30일
